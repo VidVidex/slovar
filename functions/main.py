@@ -13,7 +13,8 @@ def dis_slovarcek(query):
     # Check if the request was successful
     if response.status_code != 200:
         print(
-            "Error accessing dis-slovarcek.ijs.si. Status code:", response.status_code
+            "Error accessing https://dis-slovarcek.ijs.si. Status code:",
+            response.status_code,
         )
         return
 
@@ -25,12 +26,38 @@ def dis_slovarcek(query):
     for result_container in result_containers:
         result = result_container.find(class_="accordion")
 
-        en = result.find(class_="search-result-left").text.replace("\n", "")
-        sl = result.find(class_="search-result-right").text.replace("\n", "")
+        en = result.find(class_="search-result-left").text.strip()
+        sl = result.find(class_="search-result-right").text.strip()
 
-        id = f'dis-slovarcek-{en}-{sl}'
+        id = f"dis-slovarcek-{en}-{sl}"
 
         results.append({"en": en, "sl": sl, "source": "dis slovarcek", "id": id})
+
+    return results
+
+
+def ltfe(query):
+    response = requests.get(f"http://slovar.ltfe.org/?q={query}&type=all")
+
+    # Check if the request was successful
+    if response.status_code != 200:
+        print(
+            "Error accessing http://slovar.ltfe.org. Status code:", response.status_code
+        )
+        return
+
+    soup = BeautifulSoup(response.content, "html.parser")
+    result_containers = soup.find_all(class_="wHead")
+
+    results = []
+
+    for result_container in result_containers:
+        en = result_container.find(class_="lang").text.strip()
+        sl = result_container.contents[0].strip()
+
+        id = f"ltfe-{en}-{sl}"
+
+        results.append({"en": en, "sl": sl, "source": "ltfe", "id": id})
 
     return results
 
@@ -54,8 +81,13 @@ def slovar(req: https_fn.Request) -> https_fn.Response:
 
     query = req.get_json().get("query")
 
+    if not query:
+        return https_fn.Response("Query not provided", status=400)
+
+
     translations = []
-    translations.append(dis_slovarcek(query))
+    translations += dis_slovarcek(query)
+    translations += ltfe(query)
 
     headers = {"Access-Control-Allow-Origin": "*"}
 

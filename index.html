@@ -54,8 +54,13 @@
             translations: [],
             waiting: false,
             translate() {
+
+                if (this.query === "")
+                    return
+
                 const data = { query: this.query };
 
+                this.waiting = true
                 const response = fetch("https://slovar-wndv3z5k4q-uc.a.run.app", {
                     method: "POST",
                     headers: {
@@ -64,7 +69,7 @@
                     body: JSON.stringify(data),
                 })
                     .then(response => response.json())
-                    .then(response => response[0])
+
                     .then(translations => {
                         this.translations = translations
                         this.waiting = false
