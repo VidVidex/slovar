@@ -62,6 +62,37 @@ def ltfe(query):
     return results
 
 
+def ijs(query):
+    """
+    Na IJS ne znajo napisati programa, ki bi generiral pravilen HTML, zato rabimo ročno parsati text
+    """
+    response = requests.get(f"https://www.ijs.si/cgi-bin/rac-slovar?w={query}")
+
+    # Check if the request was successful
+    if response.status_code != 200:
+        print("Error accessing https://www.ijs.si. Status code:", response.status_code)
+        return
+
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    translation_container = soup.find("dl")
+
+    results = []
+
+    for translation in str(translation_container.contents).split("\n"):
+        translation = translation.replace("['\\n', ", "")
+        translation = translation.replace("<dt>", "")
+
+        if len(translation.split("<dd>")) == 2:
+            en, sl = translation.split("<dd>")
+
+        id = f"ijs-{en}-{sl}"
+
+        results.append({"en": en, "sl": sl, "source": "ijs", "id": id})
+
+    return results
+
+
 @https_fn.on_request()
 def slovar(req: https_fn.Request) -> https_fn.Response:
     # Set CORS headers for preflight requests
@@ -84,10 +115,10 @@ def slovar(req: https_fn.Request) -> https_fn.Response:
     if not query:
         return https_fn.Response("Query not provided", status=400)
 
-
     translations = []
     translations += dis_slovarcek(query)
     translations += ltfe(query)
+    translations += ijs(query)
 
     headers = {"Access-Control-Allow-Origin": "*"}
 
