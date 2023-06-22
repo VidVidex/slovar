@@ -6,8 +6,45 @@ import requests
 
 initialize_app()
 
+headers = {"Access-Control-Allow-Origin": "*"}
 
-def dis_slovarcek(query):
+
+def set_cors(req: https_fn.Request) -> https_fn.Response:
+    # Set CORS headers for preflight requests
+    if req.method == "OPTIONS":
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Max-Age": "3600",
+        }
+        return ("", 204, headers)
+
+    # Only allow POST requests
+    if req.method != "POST":
+        print(f"Method {req.method} not allowed")
+        return https_fn.Response("Only POST requests are accepted", status=400)
+
+    return None
+
+def get_query(req: https_fn.Request) -> str | https_fn.Response:
+    query = req.get_json().get("query")
+
+    if not query:
+        return https_fn.Response("Query not provided", status=400)
+
+    return query
+
+
+@https_fn.on_request()
+def dis(req: https_fn.Request) -> https_fn.Response:
+    ret = set_cors(req)
+    if ret is not None:
+        return ret
+    query = get_query(req)
+
+    print(query)
+
     response = requests.get(f"https://dis-slovarcek.ijs.si/search?search_query={query}")
 
     # Check if the request was successful
@@ -29,14 +66,18 @@ def dis_slovarcek(query):
         en = result.find(class_="search-result-left").text.strip()
         sl = result.find(class_="search-result-right").text.strip()
 
-        id = f"dis-slovarcek-{en}-{sl}"
+        results.append({"en": en, "sl": sl})
 
-        results.append({"en": en, "sl": sl, "source": "dis slovarcek", "id": id})
-
-    return results
+    return https_fn.Response(json.dumps(results), status=200, headers=headers)
 
 
-def ltfe(query):
+@https_fn.on_request()
+def ltfe(req: https_fn.Request) -> https_fn.Response:
+    ret = set_cors(req)
+    if ret is not None:
+        return ret
+    query = get_query(req)
+
     response = requests.get(f"http://slovar.ltfe.org/?q={query}&type=all")
 
     # Check if the request was successful
@@ -55,17 +96,19 @@ def ltfe(query):
         en = result_container.find(class_="lang").text.strip()
         sl = result_container.contents[0].strip()
 
-        id = f"ltfe-{en}-{sl}"
+        results.append({"en": en, "sl": sl})
 
-        results.append({"en": en, "sl": sl, "source": "ltfe", "id": id})
-
-    return results
+    return https_fn.Response(json.dumps(results), status=200, headers=headers)
 
 
-def ijs(query):
-    """
-    Na IJS ne znajo napisati programa, ki bi generiral pravilen HTML, zato rabimo ročno parsati text
-    """
+# Na IJS ne znajo napisati programa, ki bi generiral pravilen HTML, zato rabimo ročno parsati text
+@https_fn.on_request()
+def ijs(req: https_fn.Request) -> https_fn.Response:
+    ret = set_cors(req)
+    if ret is not None:
+        return ret
+    query = get_query(req)
+
     response = requests.get(f"https://www.ijs.si/cgi-bin/rac-slovar?w={query}")
 
     # Check if the request was successful
@@ -86,40 +129,6 @@ def ijs(query):
         if len(translation.split("<dd>")) == 2:
             en, sl = translation.split("<dd>")
 
-        id = f"ijs-{en}-{sl}"
+        results.append({"en": en, "sl": sl})
 
-        results.append({"en": en, "sl": sl, "source": "ijs", "id": id})
-
-    return results
-
-
-@https_fn.on_request()
-def slovar(req: https_fn.Request) -> https_fn.Response:
-    # Set CORS headers for preflight requests
-    if req.method == "OPTIONS":
-        headers = {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Max-Age": "3600",
-        }
-        return ("", 204, headers)
-
-    # Only allow POST requests
-    if req.method != "POST":
-        print(f"Method {req.method} not allowed")
-        return https_fn.Response("Only POST requests are accepted", status=400)
-
-    query = req.get_json().get("query")
-
-    if not query:
-        return https_fn.Response("Query not provided", status=400)
-
-    translations = []
-    translations += dis_slovarcek(query)
-    translations += ltfe(query)
-    translations += ijs(query)
-
-    headers = {"Access-Control-Allow-Origin": "*"}
-
-    return https_fn.Response(json.dumps(translations), status=200, headers=headers)
+    return https_fn.Response(json.dumps(results), status=200, headers=headers)
