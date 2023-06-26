@@ -10,7 +10,7 @@
     <title>Slovar</title>
   </head>
 
-  <body>
+  <body class="min-vh-100 d-flex flex-column justify-content-between">
     <div id="app">
       <div class="container mt-5">
         <div class="row justify-content-center">
@@ -51,42 +51,55 @@
         </div>
       </div>
     </div>
+    <div class="container">
+      <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
+        <div class="col-md-4 d-flex align-items-center">
+          <a href="https://github.com/VidVidex" class="mb-3 mb-md-0 text-body-secondary text-decoration-none">Vid Smole</span>
+        </div>
 
-    <script type="module">
-      import { createApp } from "https://unpkg.com/petite-vue@0.2.2/dist/petite-vue.es.js";
-
-      createApp({
-        query: "",
-        translations: {
-          dis: [],
-          ltfe: [],
-          ijs: [],
-        },
-        waiting: false,
-        translate() {
-          if (this.query === "") return;
-
-          const data = { query: this.query };
-          const params = {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-          };
-
-          this.waiting = true;
-
-          for (const [key, value] of Object.entries(this.translations)) {
-            this.translations[key] = [];
-
-            const response = fetch("https://" + key + "-wndv3z5k4q-uc.a.run.app/", params)
-              .then((response) => response.json())
-              .then((translations) => {
-                this.translations[key] = translations;
-                this.waiting = false;
-              });
-          }
-        },
-      }).mount();
-    </script>
+        <ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
+          <li class="ms-3">
+            <a class="text-body-secondary" href="https://github.com/VidVidex/slovar"><img height="32px" src="github-mark.svg"></a>
+          </li>
+        </ul>
+      </footer>
+    </div>
   </body>
+
+  <script type="module">
+    import { createApp } from "https://unpkg.com/petite-vue@0.2.2/dist/petite-vue.es.js";
+
+    createApp({
+      query: "",
+      translations: {
+        dis: [],
+        ltfe: [],
+        ijs: [],
+      },
+      waiting: false,
+      translate() {
+        if (this.query === "") return;
+
+        const data = { query: this.query };
+        const params = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        };
+
+        this.waiting = true;
+
+        for (const [key, value] of Object.entries(this.translations)) {
+          this.translations[key] = [];
+
+          const response = fetch("https://" + key + "-wndv3z5k4q-uc.a.run.app/", params)
+            .then((response) => response.json())
+            .then((translations) => {
+              this.translations[key] = translations;
+              this.waiting = false;
+            });
+        }
+      },
+    }).mount();
+  </script>
 </html>
