@@ -16,7 +16,7 @@
         <div class="row justify-content-center">
           <div class="col-8">
             <div class="input-group mb-3">
-              <input type="text" class="form-control" placeholder="Išči..." v-model="query" />
+              <input type="text" class="form-control" autofocus v-on:keyup.enter="translate" placeholder="Išči..." v-model="query" />
               <button class="btn btn-primary" @click="translate">Išči</button>
             </div>
           </div>
