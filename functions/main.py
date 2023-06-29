@@ -27,6 +27,7 @@ def set_cors(req: https_fn.Request) -> https_fn.Response:
 
     return None
 
+
 def get_query(req: https_fn.Request) -> str | https_fn.Response:
     query = req.get_json().get("query")
 
@@ -71,6 +72,8 @@ def dis(req: https_fn.Request) -> https_fn.Response:
     return https_fn.Response(json.dumps(results), status=200, headers=headers)
 
 
+# LTFE slovar v primeru, da je rezultatov veliko vrne samo prvih nekaj,
+# zato za vsak jezik queryjamo endpoint, ki vrne vse rezultate
 @https_fn.on_request()
 def ltfe(req: https_fn.Request) -> https_fn.Response:
     ret = set_cors(req)
@@ -78,20 +81,30 @@ def ltfe(req: https_fn.Request) -> https_fn.Response:
         return ret
     query = get_query(req)
 
-    response = requests.get(f"http://slovar.ltfe.org/?q={query}&type=all")
+    results = []
 
-    # Check if the request was successful
+    response = requests.get(f"http://slovar.ltfe.org/index/add/eng/?q={query}&type=all")
     if response.status_code != 200:
         print(
             "Error accessing http://slovar.ltfe.org. Status code:", response.status_code
         )
         return
-
     soup = BeautifulSoup(response.content, "html.parser")
     result_containers = soup.find_all(class_="wHead")
+    for result_container in result_containers:
+        sl = result_container.find(class_="lang").text.strip()
+        en = result_container.contents[0].strip()
 
-    results = []
+        results.append({"en": en, "sl": sl})
 
+    response = requests.get(f"http://slovar.ltfe.org/index/add/slo/?q={query}&type=all")
+    if response.status_code != 200:
+        print(
+            "Error accessing http://slovar.ltfe.org. Status code:", response.status_code
+        )
+        return
+    soup = BeautifulSoup(response.content, "html.parser")
+    result_containers = soup.find_all(class_="wHead")
     for result_container in result_containers:
         en = result_container.find(class_="lang").text.strip()
         sl = result_container.contents[0].strip()
