@@ -47,6 +47,12 @@
               <div class="col d-flex justify-content-end">{{ translation.en }}</div>
               <div class="col">{{ translation.sl }}</div>
             </div>
+
+            <h3 v-if="translations.googletrans.length > 0" class="d-flex justify-content-center mt-4">Google prevajalnik</h3>
+            <div class="row" v-for="translation in translations.googletrans">
+              <div class="col d-flex justify-content-end">{{ translation.en }}</div>
+              <div class="col">{{ translation.sl }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -75,6 +81,7 @@
         dis: [],
         ltfe: [],
         ijs: [],
+        googletrans: [],
       },
       waiting: false,
       translate() {

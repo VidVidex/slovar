@@ -7,6 +7,7 @@ Terminološki slovarji na enem mestu
 - [DIS slovarček](https://dis-slovarcek.ijs.si/)
 - [LTFE IKT slovar](http://slovar.ltfe.org/)
 - [IJS slovar](https://www.ijs.si/cgi-bin/rac-slovar)
+- [Google Translate](https://translate.google.com/)
 
 ## TODO
 

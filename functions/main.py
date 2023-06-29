@@ -3,6 +3,7 @@ from firebase_admin import initialize_app
 from bs4 import BeautifulSoup
 import json
 import requests
+from googletrans import Translator
 
 initialize_app()
 
@@ -143,5 +144,20 @@ def ijs(req: https_fn.Request) -> https_fn.Response:
             en, sl = translation.split("<dd>")
 
         results.append({"en": en, "sl": sl})
+
+    return https_fn.Response(json.dumps(results), status=200, headers=headers)
+
+
+@https_fn.on_request()
+def googletrans(req: https_fn.Request) -> https_fn.Response:
+    ret = set_cors(req)
+    if ret is not None:
+        return ret
+    query = get_query(req)
+
+    translator = Translator()
+
+    result = translator.translate(query, src='en', dest='sl').text
+    results = [{"en": query, "sl": result}]
 
     return https_fn.Response(json.dumps(results), status=200, headers=headers)
