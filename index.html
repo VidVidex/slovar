@@ -24,7 +24,7 @@
 
         <div class="d-flex justify-content-center mt-5" v-if="waiting">
           <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
+            <span class="visually-hidden">Iščem ...</span>
           </div>
         </div>
 
@@ -60,12 +60,12 @@
     <div class="container">
       <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
         <div class="col-md-4 d-flex align-items-center">
-          <a href="https://github.com/VidVidex" class="mb-3 mb-md-0 text-body-secondary text-decoration-none">Vid Smole</span>
+          <a href="https://github.com/VidVidex" class="mb-3 mb-md-0 text-body-secondary text-decoration-none">Vid Smole</a>
         </div>
 
         <ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
           <li class="ms-3">
-            <a class="text-body-secondary" href="https://github.com/VidVidex/slovar"><img height="32px" src="github-mark.svg"></a>
+            <a class="text-body-secondary" href="https://github.com/VidVidex/slovar"><img height="32px" src="github-mark.svg" /></a>
           </li>
         </ul>
       </footer>
@@ -84,8 +84,26 @@
         googletrans: [],
       },
       waiting: false,
-      translate() {
+      async translate() {
         if (this.query === "") return;
+
+        this.waiting = true;
+
+        // Vsaka podprta stran ima svojo funkcijo, ki pridobi rezultate in jih shrani v this.translations.X
+        // Pred tem mora tablo rezultatov počistiti in na koncu nastaviti this.waiting na false
+        await this.dis(this.query);
+        await this.ltfe(this.query);
+        await this.ijs(this.query);
+        await this.googletrans(this.query);
+      },
+      // Naredi GET request na url in vrne response. Pri tem uporablja corsproxy.io, da se izogne CORS napakam.
+      async get(url) {
+        const corsUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
+
+        return fetch(corsUrl);
+      },
+      async dis(query) {
+        // Za dis slovar ne moremo uporabiti cors proxyja ker ima neke čudne redirecte, ki jih proxy nikakor ne uspe procesirati
 
         const data = { query: this.query };
         const params = {
@@ -94,18 +112,114 @@
           body: JSON.stringify(data),
         };
 
-        this.waiting = true;
+        const response = fetch("https://dis-wndv3z5k4q-uc.a.run.app/", params)
+          .then((response) => response.json())
+          .then((translations) => {
+            this.translations.dis = translations;
+            this.waiting = false;
+          });
+      },
 
-        for (const [key, value] of Object.entries(this.translations)) {
-          this.translations[key] = [];
+      async ltfe(query) {
+        // LTFE slovar v primeru, da je rezultatov veliko vrne samo prvih nekaj,
+        // zato za vsak jezik queryjamo endpoint, ki vrne vse rezultate
+        this.translations.ltfe = [];
+        await this.ltfe_en(query);
+        await this.ltfe_sl(query);
 
-          const response = fetch("https://" + key + "-wndv3z5k4q-uc.a.run.app/", params)
-            .then((response) => response.json())
-            .then((translations) => {
-              this.translations[key] = translations;
-              this.waiting = false;
-            });
+        this.waiting = false;
+      },
+      async ltfe_en(query) {
+        const url = `http://slovar.ltfe.org/index/add/eng/?q=${query}&type=all`;
+        const response = await this.get(url);
+
+        if (!response.ok) {
+          console.error(`Error accessing ${url}. Status code: ${response.status}`);
+          return new Response(null, { status: 500 });
         }
+
+        const htmlResponse = await response.text();
+        const parser = new DOMParser().parseFromString(htmlResponse, "text/html");
+        const resultContainers = parser.querySelectorAll(".wHead");
+
+        resultContainers.forEach((resultContainer) => {
+          const sl = resultContainer.querySelector(".lang").textContent.trim();
+          const en = resultContainer.firstChild.textContent.trim();
+
+          this.translations.ltfe.push({ en, sl });
+        });
+      },
+      async ltfe_sl(query) {
+        const url = `http://slovar.ltfe.org/index/add/slo/?q=${query}&type=all`;
+        const response = await this.get(url);
+
+        if (!response.ok) {
+          console.error(`Error accessing ${url}. Status code: ${response.status}`);
+          return new Response(null, { status: 500 });
+        }
+
+        const htmlResponse = await response.text();
+        const parser = new DOMParser().parseFromString(htmlResponse, "text/html");
+        const resultContainers = parser.querySelectorAll(".wHead");
+
+        resultContainers.forEach((resultContainer) => {
+          const en = resultContainer.querySelector(".lang").textContent.trim();
+          const sl = resultContainer.firstChild.textContent.trim();
+
+          this.translations.ltfe.push({ en, sl });
+        });
+      },
+
+      async ijs(query) {
+        this.translations.ijs = [];
+
+        const url = `https://www.ijs.si/cgi-bin/rac-slovar?w=${query}`;
+        const response = await this.get(url);
+
+        if (!response.ok) {
+          console.error(`Error accessing ${url}. Status code: ${response.status}`);
+          return new Response(null, { status: 500 });
+        }
+
+        const htmlResponse = await response.text();
+        const translationContainer = new DOMParser().parseFromString(htmlResponse, "text/html").querySelector("dl");
+
+        // Check if there are any results
+        if (translationContainer === null) return;
+
+        const results = [];
+
+        translationContainer.querySelectorAll("dt").forEach((dt) => {
+          const en = dt.textContent.trim();
+          const dd = dt.nextElementSibling;
+
+          if (dd && dd.tagName === "DD") {
+            const sl = dd.textContent.trim();
+            this.translations.ijs.push({ en, sl });
+          }
+        });
+
+        this.waiting = false;
+      },
+
+      async googletrans(query) {
+        this.translations.googletrans = [];
+
+        const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=sl&dt=t&q=" + encodeURI(query);
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          console.error(`Error accessing ${url}. Status code: ${response.status}`);
+          return new Response(null, { status: 500 });
+        }
+
+        const jsonResponse = await response.json();
+        const sl = jsonResponse[0][0][0];
+        const en = jsonResponse[0][0][1];
+        this.translations.googletrans.push({ en, sl });
+
+        this.waiting = false;
       },
     }).mount();
   </script>

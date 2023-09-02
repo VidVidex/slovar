@@ -3,7 +3,6 @@ from firebase_admin import initialize_app
 from bs4 import BeautifulSoup
 import json
 import requests
-from googletrans import Translator
 
 initialize_app()
 
@@ -72,92 +71,3 @@ def dis(req: https_fn.Request) -> https_fn.Response:
 
     return https_fn.Response(json.dumps(results), status=200, headers=headers)
 
-
-# LTFE slovar v primeru, da je rezultatov veliko vrne samo prvih nekaj,
-# zato za vsak jezik queryjamo endpoint, ki vrne vse rezultate
-@https_fn.on_request()
-def ltfe(req: https_fn.Request) -> https_fn.Response:
-    ret = set_cors(req)
-    if ret is not None:
-        return ret
-    query = get_query(req)
-
-    results = []
-
-    response = requests.get(f"http://slovar.ltfe.org/index/add/eng/?q={query}&type=all")
-    if response.status_code != 200:
-        print(
-            "Error accessing http://slovar.ltfe.org. Status code:", response.status_code
-        )
-        return
-    soup = BeautifulSoup(response.content, "html.parser")
-    result_containers = soup.find_all(class_="wHead")
-    for result_container in result_containers:
-        sl = result_container.find(class_="lang").text.strip()
-        en = result_container.contents[0].strip()
-
-        results.append({"en": en, "sl": sl})
-
-    response = requests.get(f"http://slovar.ltfe.org/index/add/slo/?q={query}&type=all")
-    if response.status_code != 200:
-        print(
-            "Error accessing http://slovar.ltfe.org. Status code:", response.status_code
-        )
-        return
-    soup = BeautifulSoup(response.content, "html.parser")
-    result_containers = soup.find_all(class_="wHead")
-    for result_container in result_containers:
-        en = result_container.find(class_="lang").text.strip()
-        sl = result_container.contents[0].strip()
-
-        results.append({"en": en, "sl": sl})
-
-    return https_fn.Response(json.dumps(results), status=200, headers=headers)
-
-
-# Na IJS ne znajo napisati programa, ki bi generiral pravilen HTML, zato rabimo ročno parsati text
-@https_fn.on_request()
-def ijs(req: https_fn.Request) -> https_fn.Response:
-    ret = set_cors(req)
-    if ret is not None:
-        return ret
-    query = get_query(req)
-
-    response = requests.get(f"https://www.ijs.si/cgi-bin/rac-slovar?w={query}")
-
-    # Check if the request was successful
-    if response.status_code != 200:
-        print("Error accessing https://www.ijs.si. Status code:", response.status_code)
-        return
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    translation_container = soup.find("dl")
-
-    results = []
-
-    for translation in str(translation_container.contents).split("\n"):
-        translation = translation.replace("['\\n', ", "")
-        translation = translation.replace("<dt>", "")
-
-        if len(translation.split("<dd>")) == 2:
-            en, sl = translation.split("<dd>")
-
-        results.append({"en": en, "sl": sl})
-
-    return https_fn.Response(json.dumps(results), status=200, headers=headers)
-
-
-@https_fn.on_request()
-def googletrans(req: https_fn.Request) -> https_fn.Response:
-    ret = set_cors(req)
-    if ret is not None:
-        return ret
-    query = get_query(req)
-
-    translator = Translator()
-
-    result = translator.translate(query, src='en', dest='sl').text
-    results = [{"en": query, "sl": result}]
-
-    return https_fn.Response(json.dumps(results), status=200, headers=headers)
