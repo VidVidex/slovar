@@ -14,7 +14,7 @@
     <div id="app">
       <div class="container mt-5">
         <div class="row justify-content-center">
-          <div class="col-8">
+          <div class="col-6">
             <div class="input-group mb-3">
               <input type="text" class="form-control" autofocus v-on:keyup.enter="translate" placeholder="Išči..." v-model="query" />
               <button class="btn btn-primary" @click="translate">Išči</button>
@@ -29,7 +29,7 @@
         </div>
 
         <div class="row justify-content-center">
-          <div class="col-8">
+          <div class="col">
             <h3 v-if="translations.dis.length > 0" class="d-flex justify-content-center mt-4">DIS slovarček</h3>
             <div class="row" v-for="translation in translations.dis">
               <div class="col d-flex justify-content-end">{{ translation.en }}</div>
