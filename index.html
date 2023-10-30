@@ -1,226 +1,279 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Slovar</title>
-  </head>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous" />
 
-  <body class="min-vh-100 d-flex flex-column justify-content-between">
-    <div id="app">
-      <div class="container mt-5">
-        <div class="row justify-content-center">
-          <div class="col-6">
-            <div class="input-group mb-3">
-              <input type="text" class="form-control" autofocus v-on:keyup.enter="translate" placeholder="Išči..." v-model="query" />
-              <button class="btn btn-primary" @click="translate">Išči</button>
-            </div>
+  <title>Slovar</title>
+
+  <style>
+    a {
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body class="min-vh-100 d-flex flex-column justify-content-between">
+  <div id="app">
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-6">
+          <div class="input-group mb-3">
+            <input type="text" class="form-control" autofocus v-on:keyup.enter="translate" placeholder="Išči..."
+              v-model="query" />
+            <button class="btn btn-primary" @click="translate">Išči</button>
           </div>
         </div>
+      </div>
 
-        <div class="d-flex justify-content-center mt-5" v-if="waiting">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Iščem ...</span>
-          </div>
+      <div class="d-flex justify-content-center mt-5" v-if="waiting">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Iščem ...</span>
         </div>
+      </div>
 
-        <div class="row justify-content-center">
-          <div class="col">
-            <h3 v-if="translations.dis.length > 0" class="d-flex justify-content-center mt-4">DIS slovarček</h3>
-            <div class="row" v-for="translation in translations.dis">
-              <div class="col d-flex justify-content-end">{{ translation.en }}</div>
-              <div class="col">{{ translation.sl }}</div>
-            </div>
+      <div class="row justify-content-center">
+        <div class="col">
+          <h3 v-if="translations.dis.length > 0" class="d-flex justify-content-center mt-4">DIS slovarček</h3>
+          <div class="row" v-for="translation in translations.dis">
+            <div class="col d-flex justify-content-end">{{ translation.en }}</div>
+            <div class="col">{{ translation.sl }}</div>
+          </div>
 
-            <h3 v-if="translations.ltfe.length > 0" class="d-flex justify-content-center mt-4">LTFE IKT slovar</h3>
-            <div class="row" v-for="translation in translations.ltfe">
-              <div class="col d-flex justify-content-end">{{ translation.en }}</div>
-              <div class="col">{{ translation.sl }}</div>
-            </div>
+          <h3 v-if="translations.ltfe.length > 0" class="d-flex justify-content-center mt-4">LTFE IKT slovar</h3>
+          <div class="row" v-for="translation in translations.ltfe">
+            <div class="col d-flex justify-content-end">{{ translation.en }}</div>
+            <div class="col">{{ translation.sl }}</div>
+          </div>
 
-            <h3 v-if="translations.ijs.length > 0" class="d-flex justify-content-center mt-4">IJS slovar</h3>
-            <div class="row" v-for="translation in translations.ijs">
-              <div class="col d-flex justify-content-end">{{ translation.en }}</div>
-              <div class="col">{{ translation.sl }}</div>
-            </div>
+          <h3 v-if="translations.ijs.length > 0" class="d-flex justify-content-center mt-4">IJS slovar</h3>
+          <div class="row" v-for="translation in translations.ijs">
+            <div class="col d-flex justify-content-end">{{ translation.en }}</div>
+            <div class="col">{{ translation.sl }}</div>
+          </div>
 
-            <h3 v-if="translations.googletrans.length > 0" class="d-flex justify-content-center mt-4">Google prevajalnik</h3>
-            <div class="row" v-for="translation in translations.googletrans">
-              <div class="col d-flex justify-content-end">{{ translation.en }}</div>
-              <div class="col">{{ translation.sl }}</div>
+          <h3 v-if="translations.googletrans.length > 0" class="d-flex justify-content-center mt-4">Google prevajalnik
+          </h3>
+          <div class="row" v-for="translation in translations.googletrans">
+            <div class="col d-flex justify-content-end">{{ translation.en }}</div>
+            <div class="col">{{ translation.sl }}</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-8">
+          <h3 v-if="translations.repozitorij.length > 0" class="d-flex justify-content-center mt-4">Pojavitve v
+            repozitoriju UL</h3>
+          <div class="row" v-for="translation in translations.repozitorij">
+            <div>
+              <span>{{ translation.avtorji.join(", ") }}: <a :href="translation.repozitorij_url" target="_blank">{{
+                  translation.naslov }}</a> ({{ translation.leto }}) [{{ translation.organizacije.join(", ") }}]</span>
+              <br>
+              <p style="text-indent: 2em;">Strani: </span>
+                <template v-for="stran in translation.stevilka_strani_pdf">
+                  <a :href="translation.datoteka_url + '#page=' + stran" target="_blank">{{ stran }}</a>
+                </template>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="container">
-      <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
-        <div class="col-md-4 d-flex align-items-center">
-          <a href="https://github.com/VidVidex" class="mb-3 mb-md-0 text-body-secondary text-decoration-none">Vid Smole</a>
-        </div>
+  </div>
+  <div class="container">
+    <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
+      <div class="col-md-4 d-flex align-items-center">
+        <a href="https://github.com/VidVidex" class="mb-3 mb-md-0 text-body-secondary text-decoration-none">Vid
+          Smole</a>
+      </div>
 
-        <ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
-          <li class="ms-3">
-            <a class="text-body-secondary" href="https://github.com/VidVidex/slovar"><img height="32px" src="github-mark.svg" /></a>
-          </li>
-        </ul>
-      </footer>
-    </div>
-  </body>
+      <ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
+        <li class="ms-3">
+          <a class="text-body-secondary" href="https://github.com/VidVidex/slovar"><img height="32px"
+              src="github-mark.svg" /></a>
+        </li>
+      </ul>
+    </footer>
+  </div>
+</body>
 
-  <script type="module">
-    import { createApp } from "https://unpkg.com/petite-vue@0.2.2/dist/petite-vue.es.js";
+<script type="module">
+  import { createApp } from "https://unpkg.com/petite-vue@0.2.2/dist/petite-vue.es.js";
 
-    createApp({
-      query: "",
-      translations: {
-        dis: [],
-        ltfe: [],
-        ijs: [],
-        googletrans: [],
-      },
-      waiting: false,
-      async translate() {
-        if (this.query === "") return;
+  createApp({
+    query: "",
+    translations: {
+      dis: [],
+      ltfe: [],
+      ijs: [],
+      googletrans: [],
+      repozitorij: [],
+    },
+    waiting: false,
+    async translate() {
+      if (this.query === "") return;
 
-        this.waiting = true;
+      this.waiting = true;
 
-        // Vsaka podprta stran ima svojo funkcijo, ki pridobi rezultate in jih shrani v this.translations.X
-        // Pred tem mora tablo rezultatov počistiti in na koncu nastaviti this.waiting na false
-        await this.dis(this.query);
-        await this.ltfe(this.query);
-        await this.ijs(this.query);
-        await this.googletrans(this.query);
-      },
-      // Naredi GET request na url in vrne response. Pri tem uporablja corsproxy.io, da se izogne CORS napakam.
-      async get(url) {
-        const corsUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
+      // Vsaka podprta stran ima svojo funkcijo, ki pridobi rezultate in jih shrani v this.translations.X
+      // Pred tem mora tablo rezultatov počistiti in na koncu nastaviti this.waiting na false
+      await this.dis(this.query);
+      await this.ltfe(this.query);
+      await this.ijs(this.query);
+      await this.googletrans(this.query);
+      await this.repozitorij(this.query);
+    },
+    // Naredi GET request na url in vrne response. Pri tem uporablja corsproxy.io, da se izogne CORS napakam.
+    async get(url) {
+      const corsUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
 
-        return fetch(corsUrl);
-      },
-      async dis(query) {
-        // Za dis slovar ne moremo uporabiti cors proxyja ker ima neke čudne redirecte, ki jih proxy nikakor ne uspe procesirati
+      return fetch(corsUrl);
+    },
+    async dis(query) {
+      // Za dis slovar ne moremo uporabiti cors proxyja ker ima neke čudne redirecte, ki jih proxy nikakor ne uspe procesirati
 
-        const data = { query: this.query };
-        const params = {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        };
+      const data = { query: this.query };
+      const params = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      };
 
-        const response = fetch("https://dis-wndv3z5k4q-uc.a.run.app/", params)
-          .then((response) => response.json())
-          .then((translations) => {
-            this.translations.dis = translations;
-            this.waiting = false;
-          });
-      },
-
-      async ltfe(query) {
-        // LTFE slovar v primeru, da je rezultatov veliko vrne samo prvih nekaj,
-        // zato za vsak jezik queryjamo endpoint, ki vrne vse rezultate
-        this.translations.ltfe = [];
-        await this.ltfe_en(query);
-        await this.ltfe_sl(query);
-
-        this.waiting = false;
-      },
-      async ltfe_en(query) {
-        const url = `http://slovar.ltfe.org/index/add/eng/?q=${query}&type=all`;
-        const response = await this.get(url);
-
-        if (!response.ok) {
-          console.error(`Error accessing ${url}. Status code: ${response.status}`);
-          return new Response(null, { status: 500 });
-        }
-
-        const htmlResponse = await response.text();
-        const parser = new DOMParser().parseFromString(htmlResponse, "text/html");
-        const resultContainers = parser.querySelectorAll(".wHead");
-
-        resultContainers.forEach((resultContainer) => {
-          const sl = resultContainer.querySelector(".lang").textContent.trim();
-          const en = resultContainer.firstChild.textContent.trim();
-
-          this.translations.ltfe.push({ en, sl });
+      const response = fetch("http://127.0.0.1:5000/slovar/dis", params)
+        .then((response) => response.json())
+        .then((translations) => {
+          this.translations.dis = translations;
+          this.waiting = false;
         });
-      },
-      async ltfe_sl(query) {
-        const url = `http://slovar.ltfe.org/index/add/slo/?q=${query}&type=all`;
-        const response = await this.get(url);
+    },
 
-        if (!response.ok) {
-          console.error(`Error accessing ${url}. Status code: ${response.status}`);
-          return new Response(null, { status: 500 });
+    async ltfe(query) {
+      // LTFE slovar v primeru, da je rezultatov veliko vrne samo prvih nekaj,
+      // zato za vsak jezik queryjamo endpoint, ki vrne vse rezultate
+      this.translations.ltfe = [];
+      await this.ltfe_en(query);
+      await this.ltfe_sl(query);
+
+      this.waiting = false;
+    },
+    async ltfe_en(query) {
+      const url = `http://slovar.ltfe.org/index/add/eng/?q=${query}&type=all`;
+      const response = await this.get(url);
+
+      if (!response.ok) {
+        console.error(`Error accessing ${url}. Status code: ${response.status}`);
+        return new Response(null, { status: 500 });
+      }
+
+      const htmlResponse = await response.text();
+      const parser = new DOMParser().parseFromString(htmlResponse, "text/html");
+      const resultContainers = parser.querySelectorAll(".wHead");
+
+      resultContainers.forEach((resultContainer) => {
+        const sl = resultContainer.querySelector(".lang").textContent.trim();
+        const en = resultContainer.firstChild.textContent.trim();
+
+        this.translations.ltfe.push({ en, sl });
+      });
+    },
+    async ltfe_sl(query) {
+      const url = `http://slovar.ltfe.org/index/add/slo/?q=${query}&type=all`;
+      const response = await this.get(url);
+
+      if (!response.ok) {
+        console.error(`Error accessing ${url}. Status code: ${response.status}`);
+        return new Response(null, { status: 500 });
+      }
+
+      const htmlResponse = await response.text();
+      const parser = new DOMParser().parseFromString(htmlResponse, "text/html");
+      const resultContainers = parser.querySelectorAll(".wHead");
+
+      resultContainers.forEach((resultContainer) => {
+        const en = resultContainer.querySelector(".lang").textContent.trim();
+        const sl = resultContainer.firstChild.textContent.trim();
+
+        this.translations.ltfe.push({ en, sl });
+      });
+    },
+
+    async ijs(query) {
+      this.translations.ijs = [];
+
+      const url = `https://www.ijs.si/cgi-bin/rac-slovar?w=${query}`;
+      const response = await this.get(url);
+
+      if (!response.ok) {
+        console.error(`Error accessing ${url}. Status code: ${response.status}`);
+        return new Response(null, { status: 500 });
+      }
+
+      const htmlResponse = await response.text();
+      const translationContainer = new DOMParser().parseFromString(htmlResponse, "text/html").querySelector("dl");
+
+      // Check if there are any results
+      if (translationContainer === null) return;
+
+      const results = [];
+
+      translationContainer.querySelectorAll("dt").forEach((dt) => {
+        const en = dt.textContent.trim();
+        const dd = dt.nextElementSibling;
+
+        if (dd && dd.tagName === "DD") {
+          const sl = dd.textContent.trim();
+          this.translations.ijs.push({ en, sl });
         }
+      });
 
-        const htmlResponse = await response.text();
-        const parser = new DOMParser().parseFromString(htmlResponse, "text/html");
-        const resultContainers = parser.querySelectorAll(".wHead");
+      this.waiting = false;
+    },
 
-        resultContainers.forEach((resultContainer) => {
-          const en = resultContainer.querySelector(".lang").textContent.trim();
-          const sl = resultContainer.firstChild.textContent.trim();
+    async googletrans(query) {
+      this.translations.googletrans = [];
 
-          this.translations.ltfe.push({ en, sl });
+      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=sl&dt=t&q=" + encodeURI(query);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.error(`Error accessing ${url}. Status code: ${response.status}`);
+        return new Response(null, { status: 500 });
+      }
+
+      const jsonResponse = await response.json();
+      const sl = jsonResponse[0][0][0];
+      const en = jsonResponse[0][0][1];
+      this.translations.googletrans.push({ en, sl });
+
+      this.waiting = false;
+    },
+
+    async repozitorij(query) {
+      this.translations.repozitorij = [];
+
+      const data = { query: this.query };
+      const params = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      };
+
+      const response = fetch("http://127.0.0.1:5000/slovar/repozitorij", params)
+        .then((response) => response.json())
+        .then((translations) => {
+          this.translations.repozitorij = translations;
+          this.waiting = false;
+
+          console.log(translations[0]);
         });
-      },
+    },
+  }).mount();
+</script>
 
-      async ijs(query) {
-        this.translations.ijs = [];
-
-        const url = `https://www.ijs.si/cgi-bin/rac-slovar?w=${query}`;
-        const response = await this.get(url);
-
-        if (!response.ok) {
-          console.error(`Error accessing ${url}. Status code: ${response.status}`);
-          return new Response(null, { status: 500 });
-        }
-
-        const htmlResponse = await response.text();
-        const translationContainer = new DOMParser().parseFromString(htmlResponse, "text/html").querySelector("dl");
-
-        // Check if there are any results
-        if (translationContainer === null) return;
-
-        const results = [];
-
-        translationContainer.querySelectorAll("dt").forEach((dt) => {
-          const en = dt.textContent.trim();
-          const dd = dt.nextElementSibling;
-
-          if (dd && dd.tagName === "DD") {
-            const sl = dd.textContent.trim();
-            this.translations.ijs.push({ en, sl });
-          }
-        });
-
-        this.waiting = false;
-      },
-
-      async googletrans(query) {
-        this.translations.googletrans = [];
-
-        const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=sl&dt=t&q=" + encodeURI(query);
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          console.error(`Error accessing ${url}. Status code: ${response.status}`);
-          return new Response(null, { status: 500 });
-        }
-
-        const jsonResponse = await response.json();
-        const sl = jsonResponse[0][0][0];
-        const en = jsonResponse[0][0][1];
-        this.translations.googletrans.push({ en, sl });
-
-        this.waiting = false;
-      },
-    }).mount();
-  </script>
 </html>
