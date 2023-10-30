@@ -37,7 +37,7 @@ class Stran:
 class Datoteka:
     id: int
     url: str
-    strani: list[Stran]
+    strani: list[Stran] = None
 
 
 @dataclass
@@ -48,54 +48,53 @@ class Gradivo:
     leto: int
     organizacije: list[Organizacija]
     repozitorij_url: str
-    datoteke: list[Datoteka] = None
+    datoteke: list[Datoteka]
 
 
-def extract_strani(url) -> list[Stran]:
+def extract_strani(url: str) -> list[Stran]:
     """
     Iz PDFja na danem urlju prebere text in ga vrne v obliki strani
     """
+
     try:
         response = requests.get(url)
+        time.sleep(REQUESTS_DELAY)
+    except requests.exceptions.HTTPError as e:
+        print(f"Napaka pri prenašanju iz naslova {url}: {e}")
+        return []
 
-        if response.status_code != 200:
-            print(
-                f"Napaka pri branju datoteke iz naslova {url}: "
-                + str(response.status_code)
-            )
-            return []
-
+    try:
         with fitz.open(stream=response.content) as doc:
             strani = []
 
-            i = 1
+            stevilka_strani = 1
             for page in doc:
                 strani.append(
                     Stran(
-                        stevilka_strani_skupaj=i,
+                        stevilka_strani_skupaj=stevilka_strani,
                         stevilka_strani_pdf=page.get_label(),
                         text=page.get_text(),
                     )
                 )
-                i += 1
+                stevilka_strani += 1
 
             return strani
 
     except:
-        print(f"Napaka pri branju datoteke iz naslova {url}")
+        print(f"Napaka pri branju besedila iz datoteke na {url}")
         return []
 
 
-def json_to_gradivo(gradivo) -> Gradivo:
+def json_to_gradivo(gradivo_json: object) -> Gradivo:
     """
-    Iz response jsona prebere podatke o gradivu
+    Iz response jsona prebere podatke o gradivu, na tej točki datoteke, ki pripadajo gradivu še nimajo prenesenih strani
     """
     osebe = []
-    for avtor in gradivo["Osebe"]:
+    for avtor in gradivo_json["Osebe"]:
         osebe.append(Oseba(ime=avtor["Ime"], priimek=avtor["Priimek"]))
 
     organizacije = []
-    for organizacija in gradivo["Organizacije"]:
+    for organizacija in gradivo_json["Organizacije"]:
         organizacije.append(
             Organizacija(
                 id=organizacija["OrganizacijaID"],
@@ -104,20 +103,17 @@ def json_to_gradivo(gradivo) -> Gradivo:
             )
         )
 
-    datoteke = []
-    for datoteka in gradivo["Datoteke"]:
-        strani = extract_strani(datoteka["PrenosPolniUrl"])
-        datoteke.append(
-            Datoteka(id=datoteka["ID"], url=datoteka["PrenosPolniUrl"], strani=strani)
-        )
+        datoteke = []
+        for datoteka in gradivo_json["Datoteke"]:
+            datoteke.append(Datoteka(id=datoteka["ID"], url=datoteka["PrenosPolniUrl"]))
 
     return Gradivo(
-        id=gradivo["ID"],
+        id=gradivo_json["ID"],
         avtorji=osebe,
         organizacije=organizacije,
-        naslov=gradivo["Naslov"],
-        leto=gradivo["LetoIzida"],
-        repozitorij_url=gradivo["IzpisPolniUrl"],
+        naslov=gradivo_json["Naslov"],
+        leto=gradivo_json["LetoIzida"],
+        repozitorij_url=gradivo_json["IzpisPolniUrl"],
         datoteke=datoteke,
     )
 
@@ -226,39 +222,42 @@ def db_dodaj_datoteko(conn, datoteka: Datoteka, gradivo: Gradivo):
     conn.commit()
 
 
-def get_gradiva(conn, json):
+def db_ali_gradivo_obstaja(conn, gradivo: Gradivo) -> bool:
     """
-    Iz response jsona prebere podatke o gradivih in jih vrne. Ta gradiva še ne vsebujejo vsebine datotek.
+    Preveri ali gradivo že obstaja v bazi
     """
 
-    for result in json["results"]:
-        gradivo = json_to_gradivo(result)
+    cursor = conn.cursor()
 
-        if (
-            gradivo.datoteke == None
-            or len(gradivo.datoteke) == 0
-            or len(gradivo.datoteke[0].strani) == 0
-        ):
-            print(f"  Gradivo {gradivo.naslov} nima datotek")
-            continue
+    cursor.execute("SELECT id FROM gradiva WHERE id = ?", (gradivo.id,))
+    result = cursor.fetchall()
 
-        print(f"  Dodajam gradivo {gradivo.naslov}")
+    return len(result) != 0
 
-        for organizacija in gradivo.organizacije:
-            db_dodaj_organizacijo(conn, organizacija, gradivo)
 
-        for oseba in gradivo.avtorji:
-            db_dodaj_osebe(conn, oseba, gradivo)
+def scrape_search_result_page(source_id: int, page: int) -> (list[Gradivo], bool):
+    """
+    Scrapa eno stran gradiv in vrne seznam gradiv ter bool, ki pove ali lahko scrapamo tudi naslednjo stran ali smo že na koncu (true=lahko nadaljujemo)
+    """
 
-        db_dodaj_gradivo(conn, gradivo)
+    url = f"https://repozitorij.uni-lj.si/ajax.php?cmd=getAdvancedSearch&source={source_id}&workType=0&language=0&fullTextOnly=1&&page={page}"
 
-        for datoteka in gradivo.datoteke:
-            db_dodaj_datoteko(conn, datoteka, gradivo)
-
+    try:
+        response = requests.get(url)
         time.sleep(REQUESTS_DELAY)
+    except requests.exceptions.HTTPError as e:
+        print(f"Napaka pri prenašanju iz naslova {url}: {e}")
+        return [], True
+
+    response_json = response.json()
+    gradiva = [json_to_gradivo(result) for result in response_json["results"]]
+
+    should_continue = page < response_json["pagingInfo"]["numberOfPages"]
+
+    return gradiva, should_continue
 
 
-def scrape_faks(conn, source_id=25, start_page=1):
+def scrape_faks(conn, all=False, source_id=25, start_page=1):
     """
     V sistem prenese vse diplome z določenega faksa
     """
@@ -267,30 +266,37 @@ def scrape_faks(conn, source_id=25, start_page=1):
     while True:
         print(f"Prenašam stran {page} za organizacijo {source_id}")
 
-        url = f"https://repozitorij.uni-lj.si/ajax.php?cmd=getAdvancedSearch&source={source_id}&workType=0&language=0&fullTextOnly=1&&page={page}"
-
-        try:
-            response = requests.get(url)
-        except:
-            print(f"Napaka pri prenašanju iz naslova {url}")
-            continue
-
-        if response.status_code != 200:
-            print(f"Napaka pri prenašanju iz naslova {url}: {response.status_code}")
-            page += 1
-            if page > response_json["pagingInfo"]["numberOfPages"]:
-                break
-            time.sleep(REQUESTS_DELAY)
-
-        response_json = response.json()
-
-        get_gradiva(conn, response_json)
+        gradiva, should_continue = scrape_search_result_page(source_id, page)
 
         page += 1
-        if page > response_json["pagingInfo"]["numberOfPages"]:
+        if not should_continue:
             break
 
-        time.sleep(REQUESTS_DELAY)
+        for gradivo in gradiva:
+            print(f"  Obdelujem gradivo {gradivo.naslov}")
+
+            # Preveri ali gradivo že obstaja v bazi, če je all=True nadaljuj, če ne končaj
+            if not all and db_ali_gradivo_obstaja(conn, gradivo):
+                print(f"    Že obstaja v bazi, končujem")
+                return
+
+            # Prenesi strani za vse datoteke (vsebino datotek)
+            for datoteka in gradivo.datoteke:
+                print(f"    Prenašam strani za datoteko {datoteka.url}")
+                datoteka.strani = extract_strani(datoteka.url)
+
+            for organizacija in gradivo.organizacije:
+                db_dodaj_organizacijo(conn, organizacija, gradivo)
+
+            for oseba in gradivo.avtorji:
+                db_dodaj_osebe(conn, oseba, gradivo)
+
+            db_dodaj_gradivo(conn, gradivo)
+
+            for datoteka in gradivo.datoteke:
+                db_dodaj_datoteko(conn, datoteka, gradivo)
+
+            print()
 
 
 def create_schema(conn):
@@ -396,6 +402,12 @@ if __name__ == "__main__":
         type=int,
         help="ID faksa, ki ga želimo prenesti. 11 = FMF, 25 = FRI, 27 = FE. Ostalo: https://repozitorij.uni-lj.si/ajax.php?cmd=getSearch",
     )
+    scrape_parser.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="Prenesi vsa gradiva. Privzeto se ustavi ko pride do prvega gradiva, ki je že v bazi",
+    )
 
     args = parser.parse_args()
 
@@ -403,7 +415,7 @@ if __name__ == "__main__":
         drop_tables(conn)
         create_schema(conn)
     elif args.command == "scrape":
-        scrape_faks(conn, source_id=args.id)
+        scrape_faks(conn, all=args.all, source_id=args.id)
 
     args = parser.parse_args()
 
