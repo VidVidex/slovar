@@ -23,11 +23,15 @@ class repozitorij_result:
 @app.post("/slovar/repozitorij")
 def slovar_repozitorij():
     query = request.json["query"]
+    page = request.json["page"]
+
+    page_size = 50
 
     conn = sqlite3.connect("slovar.db")
     cursor = conn.cursor()
 
-    strani_query = """SELECT gradivo_id, naslov, leto, repozitorij_url, url as datoteka_url, GROUP_CONCAT(stevilka_strani_pdf) as stevilke_strani_pdf, GROUP_CONCAT(stevilka_strani_skupaj) as stevilke_strani_skupaj from datoteke JOIN strani ON datoteke.id = strani.datoteka_id JOIN gradiva on datoteke.gradivo_id = gradiva.id WHERE text like ? GROUP BY datoteka_id"""
+    offset = (page - 1) * page_size
+    strani_query = f"""SELECT gradivo_id, naslov, leto, repozitorij_url, url as datoteka_url, GROUP_CONCAT(stevilka_strani_pdf) as stevilke_strani_pdf, GROUP_CONCAT(stevilka_strani_skupaj) as stevilke_strani_skupaj from datoteke JOIN strani ON datoteke.id = strani.datoteka_id JOIN gradiva on datoteke.gradivo_id = gradiva.id WHERE text like ? GROUP BY datoteka_id ORDER BY gradivo_id DESC LIMIT {page_size} OFFSET {offset}"""
 
     cursor.execute(strani_query, ("%" + query + "%",))
     strani = cursor.fetchall()
