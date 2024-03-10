@@ -37,6 +37,7 @@ jobs:
         with:
           file: ./Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/slovar:${{ steps.current-time.outputs.formattedTime }}
 
   deploy:
