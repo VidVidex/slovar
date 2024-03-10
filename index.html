@@ -192,7 +192,7 @@
         body: JSON.stringify(data),
       };
 
-      const response = fetch("http://localhost:5000/slovar/dis", params)
+      const response = fetch("https://slovar.smole.org/slovar/dis", params)
         .then((response) => response.json())
         .then((translations) => {
           this.translations.dis = translations;
@@ -322,7 +322,7 @@
         body: JSON.stringify(data),
       };
 
-      const response = fetch("http://localhost:5000/slovar/repozitorij", params)
+      const response = fetch("https://slovar.smole.org/slovar/repozitorij", params)
         .then((response) => response.json())
         .then((translations) => {
           this.translations.repozitorij = translations;
